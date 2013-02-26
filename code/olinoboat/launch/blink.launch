@@ -1,0 +1,20 @@
+<launch>
+
+  <machine name="mo" address="mo" default="true" user="bradpowers"
+    ros-root="$(env ROS_ROOT)"
+    ros-package-path="$(env ROS_PACKAGE_PATH)" />
+
+  <machine name="pi" address="raspberrypi" user="pi" 
+    password="raspberry"
+    ros-root="/opt/ros/fuerte/share/ros"/>
+
+  <node pkg="olinoboat" type="talker.py" name="talker">
+    <machine="pi">
+  </node>
+
+  <node pkg="olinoboat" type="listener.py" name="listener">
+    <machine="mo">
+  </node>  
+
+
+</launch>
