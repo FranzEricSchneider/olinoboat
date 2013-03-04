@@ -5,10 +5,9 @@ from std_msgs.msg import String
 pub = 0
 
 
-def initialize(node_name,topic_to_publish_to):
+def initialize(topic_to_publish_to):
     global pub 
     pub = rospy.Publisher(topic_to_publish_to, String)
-    rospy.init_node(node_name)
 
 def publish(message):
     global pub
