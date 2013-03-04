@@ -3,12 +3,12 @@
   <machine name="mo" address="localhost" default="true" env-loader="/opt/ros/groovy/env.sh" user="$(env ROS_USERNAME)"/>
 
   <!--
-  <machine name="pi" address="raspberrypi" user="pi" password="raspberry" env-loader="/opt/ros/groovy/env.sh"> -->
- 
-  <node pkg="olinoboat" type="talker.py" name="talker" machine="mo" output="screen"/>
- 
+  <machine name="pi" address="raspberrypi" user="pi" password="raspberry" env-loader="/opt/ros/groovy/env.sh"> 
 
-  <node pkg="olinoboat" type="listener.py" name="listener" machine="mo" output="screen"/> 
+  <node pkg="olinoboat" type="publisher.py" name="listener" machine="mo" output="screen"/>
+  -->   
+
+  <node pkg="olinoboat" type="servo_pub.py" name="servo" machine="mo" output="screen"/> 
 
 
 </launch>
