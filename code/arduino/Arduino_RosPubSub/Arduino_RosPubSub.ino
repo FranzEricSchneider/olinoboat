@@ -6,66 +6,97 @@
  * 
  */
 
+// Includes all of this file's dependencies. Make sure they're in the right path!
+#include <Wire.h>
+#include <LSM303.h>
 #include <Arduino.h>
 #include <Servo.h>
 #include <ros.h>
 #include <std_msgs/UInt16.h>
 
+// Enable node handling, letting this file initialize publishers and subscribers.
 ros::NodeHandle  nh;
+    
+// Set variables to be used later format: datatype variablename
+unsigned long duration;
+int encoder_pin = 8;
+int servo1_pin = 9;
+int servo2_pin = 10;
+std_msgs:: UInt16 pwm_msg;      // The encoder outputs a 16 bit unsigned integer for the amount of time the pulse is high
+std_msgs:: UInt16 compass_msg;  // The compass outputs a 16 bit unsigned integer from 0 at North clockwise to 360 if you've calibrated.
+std_msgs:: UInt16 servo1_msg;
+std_msgs:: UInt16 servo2_msg;
 
-// Setting up the encoder PWM signal
-    // The message type for our encoder publisher
-    std_msgs:: UInt16 pwm_msg;
-    
-    // Setting up Arduino subscribers
-    ros::Publisher pub_pwm("pwm_duration", &pwm_msg);
-    
-    int encoder_pin = 8;                  //pin 8 is encoder input
-    unsigned long duration;
+//Instantiate instances of classes
+LSM303 compass;
+Servo servo1;
+Servo servo2;
+
+
+// Define callback functions for subscribers (what to do when a new signal comes in)
+  // Callback response for servo1
+  void servo1_cb( const std_msgs::UInt16& cmd_msg1){	//function servo1_cb references the servo command
+    servo1.write(cmd_msg1.data); //set servo angle, should be from 0-180
+  }
   
-// Setting up the servo control
-    Servo servo1;
-    Servo servo2;
+  // Callback response for servo2  
+  void servo2_cb( const std_msgs::UInt16& cmd_msg2){   //function servo2_cb requires a UInt16 input
+    servo2.write(cmd_msg2.data); //set servo angle, should be from 0-180  
+  }
     
-    // Callback response for servo1
-    void servo1_cb( const std_msgs::UInt16& cmd_msg){
-      servo1.write(cmd_msg.data); //set servo angle, should be from 0-180  
-      digitalWrite(13, HIGH-digitalRead(13));  //toggle led  
-    }
-  
-    // Callback response for servo2  
-    void servo2_cb( const std_msgs::UInt16& cmd_msg){
-      servo2.write(cmd_msg.data); //set servo angle, should be from 0-180  
-      digitalWrite(13, HIGH-digitalRead(13));  //toggle led  
-    }
-    
-    //Setting up Arduino subscribers
-    ros::Subscriber<std_msgs::UInt16> sub1("servo1", servo1_cb);
-    ros::Subscriber<std_msgs::UInt16> sub2("servo2", servo2_cb);
+// Define subscribers: <std_msgs::OutputDataType> subscribername("topic_name", callback_function);
+        //Each subscriber has a name, is subscribed to a topic with data of a specific type. When it hears something, it runs the callback function with the data as arguments.
+  ros::Subscriber<std_msgs::UInt16> sub1("servo1", servo1_cb);
+  ros::Subscriber<std_msgs::UInt16> sub2("servo2", servo2_cb);
 
+// define publishers: publishername("topic_name", &message);
+  ros::Publisher pub_pwm("pwm_duration", &pwm_msg);
+  ros::Publisher pub_compass("heading", &compass_msg);
 
+// This is the setup code that runs on startup and calls the functions defined above.
 void setup(){
-  // Initializing the Arduino as a fake node
+
+  // Initialize the Arduino as a fake node
   nh.initNode();
   
-  // Setting up the encoder PWM signal
-      pinMode(encoder_pin, INPUT);		
-      nh.advertise(pub_pwm);
+  // Set up Arduino hardware pins
+  pinMode(encoder_pin, INPUT); //attach encoder to pin 8
+  servo1.attach(servo1_pin); //attach servo1 to pin 9
+  servo2.attach(servo2_pin); //attach servo2 to pin 10
+
+  // Set up Compass
+  Wire.begin();
+  compass.init();
+  compass.enableDefault();  
+  // Calibration values. Use the Calibrate example program to get the values for
+  // your compass.
+  compass.m_min.x = -520; compass.m_min.y = -570; compass.m_min.z = -770;
+  compass.m_max.x = +540; compass.m_max.y = +500; compass.m_max.z = 180;
+
+	
+  // "Advertise" to the node the topics being published	
+  nh.advertise(pub_pwm);
+  nh.advertise(pub_compass);
       
-  // Setting up the servo control
-      nh.subscribe(sub1);
-      nh.subscribe(sub2);
-      servo1.attach(9); //attach servo1 to pin 9
-      servo2.attach(10); //attach servo2 to pin 10
+  // Subscribe to the node to the servo control topics
+  nh.subscribe(sub1);
+  nh.subscribe(sub2);
 }
 
+// This is the code that runs repeatedly until you shut it down.
 void loop(){
   nh.spinOnce();
 
   // Collecting the encoder PWM signal
-      pwm_msg.data = pulseIn(encoder_pin, HIGH);
-      pub_pwm.publish(&pwm_msg);
+  pwm_msg.data = pulseIn(encoder_pin, HIGH);
 
+  // Collecting compass input vector
+  compass.read();
+  compass_msg.data = compass.heading((LSM303::vector){0,-1,0});
+
+  // Publish each new message.
+  pub_pwm.publish(&pwm_msg);
+  pub_compass.publish(&compass_msg);
   delay(1);
 }
 

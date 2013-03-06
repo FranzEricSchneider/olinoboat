@@ -3,25 +3,38 @@ import roslib; roslib.load_manifest('beginner_tutorials')
 import rospy
 from std_msgs.msg import UInt16
 
-offset = 0	#need to add offset pub and subscribe to it
-		# in the meantime, use 'rostopic pub -r 1 /offset std_msgs/UInt16 25' for an offset of 25 degrees
- 
+
 class datalistener():
 
-    def __init__(self, offset = 0):
+    def __init__(self, offset = 0, node = 0):
         self.offset = offset
-        rospy.init_node('data_listener', anonymous=False)
-        rospy.Subscriber("offset", UInt16, self.offset_callback)
-        rospy.Subscriber("pwm_duration", UInt16, self.pwm_callback)
+	self.wind_angle = 0
+	self.compass_angle = 0
+	self.gps_pos = [0,0,0]
 
+	#initialize node
+        if node == 0:
+            rospy.init_node('data_listener', anonymous=False)
+	
+	#set up subscribers to ("topic", DataType, callback_function)
+        rospy.Subscriber("pwm_offset", UInt16, self.offset_callback)
+        rospy.Subscriber("pwm_duration", UInt16, self.pwm_callback)
+        rospy.Subscriber("heading", UInt16, self.compass_callback)
+        rospy.Subscriber("GPS_output", UInt16, self.gps_callback)
+
+    ## define callback functions
     def offset_callback(self, data):
         self.offset = data.data
 
     def pwm_callback(self, data):
         phigh = data.data
-        angle = (360*(phigh - self.offset)/1024.)%360
-        rospy.loginfo(rospy.get_name() + ": pwm is %s, offset is %s" %(phigh, self.offset))
-        rospy.loginfo(rospy.get_name() + ": Encoder reads %s degrees" % angle)
+        self.wind_angle = (360*(phigh - self.offset)/1024.)%360
+
+    def compass_callback(self, data):
+        self.compass_angle = data.data
+
+    def gps_callback(self, data):
+        self.gps_pos = data.data
  
  
 if __name__ == '__main__':
