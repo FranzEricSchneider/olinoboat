@@ -6,8 +6,9 @@ rospy.init_node("servo_stuff")
 def listen(data):
 	print data
 
-publisher.initialize("chatter")
-subscriber.initialize("chatter",listen)
+publisher.initialize("servo1")
+publisher.initialize("servo2")
+subscriber.initialize("potentiometer",listen)
 
 while(True):
 	publisher.publish("hey there")
