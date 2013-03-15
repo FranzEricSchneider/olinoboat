@@ -30,12 +30,12 @@ class datalistener():
 
     def pwm_callback(self, data):
         phigh = data.data
-        self.wind_angle = (360*(phigh - self.offset)/1024.)%360
+        self.wind_angle = (360.*(phigh - self.offset)/1024.)%360
 
     def water_callback(self, data):
         if data.data > 1:
             self.leak = 1
-	else self.leak = 0	#May need to comment this out, reset self.leak manually in the event of a leak.
+	else: self.leak = 0	#May need to comment this out, reset self.leak manually in the event of a leak.
 
     def compass_callback(self, data):
         self.compass_angle = data.data
