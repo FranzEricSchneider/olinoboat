@@ -36,7 +36,8 @@ std_msgs:: UInt16 water_msg;    // The water sensor outputs a value for its volt
 std_msgs:: UInt16 compass_msg;  // The compass outputs a 16 bit unsigned integer from 0 at North clockwise to 360 if you've calibrated.
 std_msgs:: UInt16 servo1_msg;
 std_msgs:: UInt16 servo2_msg;
-std_msgs:: UInt16MultiArray GPS_msg;
+//std_msgs:: UInt16MultiArray GPS_msg;
+std_msgs:: UInt16 GPS_msg;
 
 //Instantiate instances of classes
 LSM303 compass;
@@ -92,9 +93,10 @@ void useInterrupt(boolean v) {
 
 // This is the setup code that runs on startup and calls the functions defined above.
 void setup(){
-
+  Serial.begin(57600);  // connect at 115200 so we can read the GPS fast enough and echo without dropping chars. also spit it out
   // Initialize the Arduino as a fake node
   nh.initNode();
+  nh.getHardware()->setBaud(57600);
   
   // Set up Arduino hardware pins
   pinMode(encoder_pin, INPUT); // set encoder_pin to input
@@ -109,13 +111,14 @@ void setup(){
   compass.enableDefault();  
   // Calibration values. Use the Calibrate example program to get the values for
   // your compass.
-  compass.m_min.x = -520; compass.m_min.y = -570; compass.m_min.z = -770;
-  compass.m_max.x = +540; compass.m_max.y = +500; compass.m_max.z = 180;
+  compass.m_min.x = -48; compass.m_min.y = -222; compass.m_min.z = -613;
+  compass.m_max.x = +68; compass.m_max.y = -206; compass.m_max.z = -599;
   
+
   // Set up GPS
-  Serial.begin(115200);  // connect at 115200 so we can read the GPS fast enough and echo without dropping chars. also spit it out
+
   GPS.begin(9600);  // 9600 NMEA is the default baud rate for Adafruit MTK GPS's- some use 4800
-  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA); 
+  //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
   GPS.sendCommand(PGCMD_ANTENNA);   // Request updates on antenna status, comment out to keep quiet
   useInterrupt(true);
@@ -193,15 +196,19 @@ void loop(){
   if (millis() - timer > 2000) { 
     timer = millis(); // reset the timer
 
-    location[0] = GPS.latitude;
-    location[1] = GPS.longitude;
+    //location[0] = GPS.latitude;
+    //location[1] = GPS.longitude;
+    //GPS_msg.data = location;
   }
+  GPS_msg.data = 14;
+  
   // Publish each new message.
   pub_wind.publish(&wind_msg);
   pub_water.publish(&water_msg);
   pub_compass.publish(&compass_msg);
   pub_GPS.publish(&GPS_msg);
   delay(1);
+  Serial.print("Here");
 }
 
 
