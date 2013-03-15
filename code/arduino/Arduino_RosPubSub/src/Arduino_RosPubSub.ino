@@ -28,13 +28,14 @@ int servo2_pin = 10;
 int water_pin = A1;
 unsigned long duration;
 int water_voltage = 0;
-std_msgs:: UInt16 water_msg;
-std_msgs:: UInt16 wind_msg;    // The water sensor outputs a value for its voltage between 0V and 5V depending on whether the circuit senses water or not.
+char location[2] = { 0 };
+uint32_t timer = millis();
+
+std_msgs:: UInt16 wind_msg;      // The encoder outputs a 16 bit unsigned integer for the amount of time the pulse is high
+std_msgs:: UInt16 water_msg;    // The water sensor outputs a value for its voltage between 0V and 5V depending on whether the circuit senses water or not.
 std_msgs:: UInt16 compass_msg;  // The compass outputs a 16 bit unsigned integer from 0 at North clockwise to 360 if you've calibrated.
 std_msgs:: UInt16 servo1_msg;
 std_msgs:: UInt16 servo2_msg;
-std_msgs:: UInt16 timer;
-std_msgs:: UInt16 location[2];
 std_msgs:: UInt16MultiArray GPS_msg;
 
 //Instantiate instances of classes
@@ -53,7 +54,7 @@ void useInterrupt(boolean);
 
 // Define callback functions for subscribers (what to do when a new signal comes in)
   // Callback response for servo1
-void servo1_cb( const std_msgs::UInt16& cmd_msg1){	//function servo1_cb references the servo command
+void servo1_cb( const std_msgs::UInt16& cmd_msg1){  //function servo1_cb references the servo command
   servo1.write(cmd_msg1.data); //set servo angle, should be from 0-180
 }
   
@@ -83,7 +84,6 @@ void useInterrupt(boolean v) {
   ros::Subscriber<std_msgs::UInt16> sub2("servo2", servo2_cb);
 
 // define publishers: publishername("topic_name", &message);
-
   ros::Publisher pub_wind("pwm_duration", &wind_msg);
   ros::Publisher pub_water("leak", &water_msg);
   ros::Publisher pub_GPS("location", &GPS_msg);
@@ -121,8 +121,8 @@ void setup(){
   useInterrupt(true);
 
   delay(1000);
-	
-  // "Advertise" to the node the topics being published	
+  
+  // "Advertise" to the node the topics being published 
   nh.advertise(pub_wind);
   nh.advertise(pub_compass);
   nh.advertise(pub_water);
@@ -150,6 +150,7 @@ SIGNAL(TIMER0_COMPA_vect) {
 // This is the code that runs repeatedly until you shut it down.
 void loop(){
   nh.spinOnce();
+
 // Collecting the encoder wind signal for relative wind direction
   wind_msg.data = pulseIn(encoder_pin, HIGH);
   
@@ -202,5 +203,4 @@ void loop(){
   pub_GPS.publish(&GPS_msg);
   delay(1);
 }
-
 
