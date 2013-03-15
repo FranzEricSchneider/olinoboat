@@ -24,7 +24,7 @@ int servo2_pin = 10;
 int water_pin = A1;
 unsigned long duration;
 int water_voltage = 0;
-std_msgs:: UInt16 pwm_msg;      // The encoder outputs a 16 bit unsigned integer for the amount of time the pulse is high
+std_msgs:: UInt16 encoder_msg;      // The encoder outputs a 16 bit unsigned integer for the amount of time the pulse is high
 std_msgs:: UInt16 water_msg;    // The water sensor outputs a value for its voltage between 0V and 5V depending on whether the circuit senses water or not.
 std_msgs:: UInt16 compass_msg;  // The compass outputs a 16 bit unsigned integer from 0 at North clockwise to 360 if you've calibrated.
 std_msgs:: UInt16 servo1_msg;
@@ -53,7 +53,7 @@ Servo servo2;
   ros::Subscriber<std_msgs::UInt16> sub2("servo2", servo2_cb);
 
 // define publishers: publishername("topic_name", &message);
-  ros::Publisher pub_pwm("pwm_duration", &pwm_msg);
+  ros::Publisher pub_pwm("pwm_duration", &encoder_msg);
   ros::Publisher pub_water("leak", &water_msg);
   ros::Publisher pub_compass("heading", &compass_msg);
 
@@ -96,7 +96,7 @@ void loop(){
   nh.spinOnce();
 
   // Collecting the encoder PWM signal for relative wind direction
-  pwm_msg.data = pulseIn(encoder_pin, HIGH);
+  encoder_msg.data = pulseIn(encoder_pin, HIGH);
   
   // Collecting water sensor voltage
   water_voltage = analogRead(water_pin);
@@ -112,7 +112,7 @@ void loop(){
   compass_msg.data = compass.heading((LSM303::vector){0,-1,0});
 
   // Publish each new message.
-  pub_pwm.publish(&pwm_msg);
+  pub_pwm.publish(&encoder_msg);
   pub_water.publish(&water_msg);
   pub_compass.publish(&compass_msg);
   delay(1);
