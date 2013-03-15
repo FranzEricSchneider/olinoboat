@@ -95,7 +95,7 @@ void setup(){
 
   // Initialize the Arduino as a fake node
   nh.initNode();
-  
+  Serial.println("setting up");
   // Set up Arduino hardware pins
   pinMode(encoder_pin, INPUT); // set encoder_pin to input
   pinMode(water_pin, INPUT); // set water_pin to input
@@ -119,6 +119,9 @@ void setup(){
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
   GPS.sendCommand(PGCMD_ANTENNA);   // Request updates on antenna status, comment out to keep quiet
   useInterrupt(true);
+
+  Serial.begin(9600);
+
 
   delay(1000);
   
@@ -149,7 +152,11 @@ SIGNAL(TIMER0_COMPA_vect) {
   
 // This is the code that runs repeatedly until you shut it down.
 void loop(){
+  nh.loginfo("spinning");
+  Serial.println("spiningg");
   nh.spinOnce();
+  Serial.println("done spiningg");
+  nh.loginfo("done spinning");
 
 // Collecting the encoder wind signal for relative wind direction
   wind_msg.data = pulseIn(encoder_pin, HIGH);
@@ -163,10 +170,12 @@ void loop(){
     digitalWrite(13, LOW);
   }
 
+  Serial.println("water done");
 // Collecting compass input vector
   compass.read();
   compass_msg.data = compass.heading((LSM303::vector){0,-1,0});
   
+  Serial.println("compass done");
 // Collect GPS data
   if (! usingInterrupt) {
     // read data from the GPS in the 'main loop'
@@ -175,6 +184,7 @@ void loop(){
     if (GPSECHO)
       if (c) Serial.print(c);
   }
+  Serial.println("GPS read");
   // if a sentence is received, we can check the checksum, parse it...
   if (GPS.newNMEAreceived()) {
     // a tricky thing here is if we print the NMEA sentence, or data
@@ -186,6 +196,7 @@ void loop(){
       return;  // we can fail to parse a sentence in which case we should just wait for another
   }
 
+  Serial.println("GPS parsed");
   // if millis() or timer wraps around, we'll just reset it
   if (timer > millis())  timer = millis();
 
@@ -196,11 +207,15 @@ void loop(){
     location[0] = GPS.latitude;
     location[1] = GPS.longitude;
   }
+  Serial.println("timer timed");
   // Publish each new message.
   pub_wind.publish(&wind_msg);
   pub_water.publish(&water_msg);
   pub_compass.publish(&compass_msg);
   pub_GPS.publish(&GPS_msg);
+  Serial.println("delaying");
   delay(1);
+  Serial.println("delaying");
+
 }
 
