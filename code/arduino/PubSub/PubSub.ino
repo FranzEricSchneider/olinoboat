@@ -11,7 +11,7 @@
 // Pick one up today at the Adafruit electronics shop 
 // and help support open source hardware & software! -ada
 
-#include <Adafruit_GPS.h>
+#include <TinyGPS.h>
 #include <SoftwareSerial.h>
 #include <ros.h>
 #include <std_msgs/UInt16.h>
@@ -21,26 +21,28 @@
 #include <Arduino.h>
 #include <Servo.h>
 
-SoftwareSerial mySerial(3, 2);
-Adafruit_GPS GPS(&mySerial);
+SoftwareSerial nss(3, 2);
+TinyGPS gps;
 
-/*
+
 LSM303 compass;
 Servo servo1;
 Servo servo2;
-*/
-ros::NodeHandle nh;
 
+ros::NodeHandle nh;
 
 std_msgs:: UInt16 wind_msg; // The encoder outputs a 16 bit unsigned integer for the amount of time the pulse is high
 std_msgs:: UInt16 water_msg; // The water sensor outputs a value for its voltage between 0V and 5V depending on whether the circuit senses water or not.
 std_msgs:: UInt16 compass_msg; // The compass outputs a 16 bit unsigned integer from 0 at North clockwise to 360 if you've calibrated.
 std_msgs:: UInt16 servo1_msg;
 std_msgs:: UInt16 servo2_msg;
-std_msgs:: String gps_msg;
+std_msgs:: UInt16 gps_lat_msg;
+std_msgs:: UInt16 gps_lon_msg;
 
 
-int encoder_pin = 8;
+float flat;
+float flon;
+unsigned long age;int encoder_pin = 8;
 int servo1_pin = 9;
 int servo2_pin = 10;
 int water_pin = A1;
@@ -49,16 +51,7 @@ int water_voltage = 0;
 
 
 
-// Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
-// Set to 'true' if you want to debug and listen to the raw GPS sentences. 
-#define GPSECHO  false
 
-// this keeps track of whether we're using the interrupt
-// off by default!
-boolean usingInterrupt = false;
-void useInterrupt(boolean); // Func prototype keeps Arduino 0023 happy
-
-/*
 // Define callback functions for subscribers (what to do when a new signal comes in)
   // Callback response for servo1
 void servo1_cb( const std_msgs::UInt16& cmd_msg1){	//function servo1_cb references the servo command
@@ -72,11 +65,12 @@ void servo2_cb( const std_msgs::UInt16& cmd_msg2){ //function servo2_cb requires
 
 ros::Subscriber<std_msgs::UInt16> sub1("servo1", servo1_cb);
 ros::Subscriber<std_msgs::UInt16> sub2("servo2", servo2_cb);
-*/
+
 ros::Publisher pub_wind("pwm_duration", &wind_msg);
 ros::Publisher pub_water("leak", &water_msg);
 ros::Publisher pub_compass("heading", &compass_msg);
-ros::Publisher pub_gps("gps", &gps_msg);
+ros::Publisher pub_gps_lat("gps", &gps_lat_msg);
+ros::Publisher pub_gps_lon("gps", &gps_lon_msg);
 
 void setup()  
 {
@@ -87,7 +81,7 @@ void setup()
   pinMode(encoder_pin, INPUT); // set encoder_pin to input
   pinMode(water_pin, INPUT); // set water_pin to input
   pinMode(13, OUTPUT);
-  /*
+  
   servo1.attach(servo1_pin); //attach servo1 to servo1_pin
   servo2.attach(servo2_pin); //attach servo2 to servo2_pin
 
@@ -100,83 +94,55 @@ void setup()
   compass.m_min.x = -520; compass.m_min.y = -570; compass.m_min.z = -770;
   compass.m_max.x = +540; compass.m_max.y = +500; compass.m_max.z = 180;
 
-  */
+  
   // "Advertise" to the node the topics being published
   nh.advertise(pub_wind);
   nh.advertise(pub_compass);
   nh.advertise(pub_water);
-  nh.advertise(pub_gps);
+  nh.advertise(pub_gps_lat);
+  nh.advertise(pub_gps_lon);
 
 
-/*
+
   // Subscribe to the node to the servo control topics
   nh.subscribe(sub1);
   nh.subscribe(sub2);
-*/
+
   delay(50);
   
-    // connect at 115200 so we can read the GPS fast enough and echo without dropping chars
-  // also spit it out
-  Serial.begin(57600);
-
-  // 9600 NMEA is the default baud rate for Adafruit MTK GPS's- some use 4800
-  GPS.begin(9600);
-  
-  //nh.loginfo("serial port set up");
-  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
-  // Set the update rate
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
-  GPS.sendCommand(PGCMD_ANTENNA);
-  useInterrupt(true);
-  
-  // Ask for firmware version
-  mySerial.println(PMTK_Q_RELEASE);
-}
-
-
-// Interrupt is called once a millisecond, looks for any new GPS data, and stores it
-SIGNAL(TIMER0_COMPA_vect) {
-  char c = GPS.read();
-  // if you want to debug, this is a good time to do it!
-#ifdef UDR0
-  if (GPSECHO)
-    if (c) UDR0 = c;  
-    // writing direct to UDR0 is much much faster than Serial.print 
-    // but only one character can be written at a time. 
-#endif
-}
-
-void useInterrupt(boolean v) {
-  if (v) {
-    // Timer0 is already used for millis() - we'll just interrupt somewhere
-    // in the middle and call the "Compare A" function above
-    OCR0A = 0xAF;
-    TIMSK0 |= _BV(OCIE0A);
-    usingInterrupt = true;
-  } else {
-    // do not call the interrupt function COMPA anymore
-    TIMSK0 &= ~_BV(OCIE0A);
-    usingInterrupt = false;
-  }
 }
 
 void loop()                     // run over and over again
 {
-
-  
-  
-  if (GPS.newNMEAreceived()){
-    gps_msg.data = GPS.lastNMEA();
-    pub_gps.publish(&gps_msg);
-    //if (!GPS.parse(GPS.lastNMEA()))
-      //return;
+  bool newData = false;
+  for (unsigned long start = millis(); millis() - start < 1000;)
+  {;
+  while (nss.available())
+  {
+    int c = nss.read();
+    nh.loginfo("new gps data");
+    if (gps.encode(c))
+    {
+      newData = true;
+      // process new gps info here
+    }
+  }
   }
   
-/*
+  if (newData){
+    gps.f_get_position(&flat, &flon, &age);
+    flat = TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 6;
+    gps_lat_msg.data = flat;
+    flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6;
+    gps_lon_msg.data = flon; 
+    pub_gps_lat.publish(&gps_lat_msg);
+    pub_gps_lon.publish(&gps_lon_msg);
+  }
+  
+  
   pub_wind.publish(&wind_msg);
   pub_water.publish(&water_msg);
   pub_compass.publish(&compass_msg);
-  */
   nh.loginfo("about to spin");
   nh.spinOnce();
   nh.loginfo("pants");
