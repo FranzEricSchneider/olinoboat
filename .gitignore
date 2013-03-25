@@ -4,5 +4,6 @@ bin/
 lib/
 msg_gen/
 srv_gen/
+junk_tests/
 *.pyc
 .build/
