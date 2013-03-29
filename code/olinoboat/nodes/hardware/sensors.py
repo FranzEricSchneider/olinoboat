@@ -13,6 +13,7 @@ class WindAngle():
     def __init__(self, offset = 0, node = 0):
         self.__offset = offset
         self.angle = 0
+        self.callback = __default_callback
 
         #initialize node if not running from the think code
         if node == 0:
@@ -24,19 +25,27 @@ class WindAngle():
         rospy.loginfo("WindAngle initialized")
 
     def __set_offset(self, data):
-        rospy.loginfo("Servo got offset signal: %i" % (data.data))
+        rospy.loginfo("encoder send offset signal: %i" % (data.data))
         self.offset = data.data
 
     def __pwm_to_wind_angle(self, data):
-        rospy.loginfo("Servo got pwm signal: %i" % (data.data))
+        rospy.loginfo("encoder sent pwm signal: %i" % (data.data))
         phigh = data.data
         self.angle = (360*(phigh - self.__offset)/1024.)%360
+        self.callback(self.angle)
+
+    def set_callback(self,callback):
+        self.callback = callback
+
+    def __default_callback(self, angle):
+        rospy.loginfo("encoder sent pwm signal, but no additional callback has been registered" % (data.data))
 
 
 class GPS():
 
     def __init__(self, node = 0):
         self.current_location = [0,0,0]
+        self.callback = __default_callback
 
         #initialize node if not loading from think code
         if node == 0:
@@ -48,12 +57,20 @@ class GPS():
     def __set_current_position(self, data):
         rospy.loginfo("GPS sent %i" % (data.data))
         self.current_location = data.data
+        self.callback(self.current_location)
+
+    def set_callback(self,callback):
+        self.callback = callback
+
+    def __default_callback(self, position):
+        rospy.loginfo("GPS sent data, but no additional callback has been registered" % (data.data))
 
 
 class Compass():
 
     def __init__(self, node = 0):
-        self.angle = 0             
+        self.angle = 0   
+        self.callback = __default_callback          
     
         #initialize node if not loading from think code     
         if node == 0:
@@ -64,13 +81,19 @@ class Compass():
 
     def __set_angle(self, data):
         rospy.loginfo("Compass sent %i" % (data.data))
-
         self.compass_angle = data.data
+        self.callback(self.compass_angle)
+
+    def set_callback(self,callback):
+        self.callback = callback
+
+    def __default_callback(self, direction):
+        rospy.loginfo("encoder sent pwm signal, but no additionalcallback has been registered" % (data.data))
 
 class LeakDetector():
     def __init__(self, node=0, leak_callback=0,):
         self.leak_detected = 0 
-        self.leak_callback = leak_callback or self.__default_leak_callback          
+        self.leak_callback = leak_callback or self.__default_leak_callback  
 
         if node == 0:
             rospy.init_node('data_listener', anonymous=False)
@@ -88,6 +111,9 @@ class LeakDetector():
 
     def __default_leak_callback(self):
         rospy.loginfo("Leak detected, but no callback registered")
+
+    def set_callback(self,callback):
+        self.leak_callback = callback
 
 
 def init(node):

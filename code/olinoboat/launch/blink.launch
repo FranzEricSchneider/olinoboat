@@ -8,7 +8,7 @@
   <node pkg="olinoboat" type="publisher.py" name="listener" machine="mo" output="screen"/>
   -->   
 
-  <node pkg="olinoboat" type="servo_pub.py" name="servo" machine="mo" output="screen"/> 
+  <node pkg="olinoboat" type="go_fast.py" name="go_fast" machine="mo" output="screen"/> 
 
 
 </launch>
